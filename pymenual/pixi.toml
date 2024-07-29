@@ -1,0 +1,19 @@
+[project]
+name = "pymenual"
+version = "0.1.0"
+description = "Add a short description here"
+authors = ["raceychan <raceychan@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tasks]
+
+[dependencies]
+python = "==3.9"
+textual = ">=0.73.0,<0.74"
+
+[feature.dev.dependencies]
+textual-dev = "*"
+
+[environments]
+dev = ["dev"]

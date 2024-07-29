@@ -1,0 +1,71 @@
+Screen {
+    align: center middle;
+    background: $surface;
+}
+
+Horizontal {
+    width: 90%;
+    height: 70%;
+    background: $panel;
+    border: round $primary;
+    padding: 1 2;
+}
+
+SelectionList {
+    width: 100%;
+    height: 100%;
+    border: round $accent;
+    margin-right: 1;
+}
+
+/* Pretty {
+    width: 60%;
+    height: 100%;
+    border: round $accent;
+} */
+
+VerticalScroll {
+    width: 90%;
+    height: auto;
+    background: $boost;
+    border: round $primary;
+    margin-top: 1;
+    padding: 1 2;
+}
+
+Label {
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+Input {
+    margin-bottom: 2;
+}
+
+/* Checkbox {
+    height: 2;
+} */
+
+
+PreviewModal {
+    align: center middle;
+}
+
+#preview-container {
+    width: 80%;
+    height: 80%;
+    border: round $accent;
+    background: $surface;
+}
+
+#preview-title {
+    dock: top;
+    height: 3;
+    background: $accent;
+    color: $text;
+    content-align: center middle;
+}
+
+#preview-content {
+    padding: 1;
+}
