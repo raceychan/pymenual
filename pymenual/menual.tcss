@@ -3,9 +3,14 @@ Screen {
     background: $surface;
 }
 
+#home-body {
+  height: 100%;
+  width: 1fr;
+}
+
 Horizontal {
-    width: 90%;
-    height: 70%;
+    width: 50%;
+    height: 50%;
     background: $panel;
     border: round $primary;
     padding: 1 2;
@@ -17,12 +22,6 @@ SelectionList {
     border: round $accent;
     margin-right: 1;
 }
-
-/* Pretty {
-    width: 60%;
-    height: 100%;
-    border: round $accent;
-} */
 
 VerticalScroll {
     width: 90%;
@@ -39,13 +38,9 @@ Label {
 }
 
 Input {
+    width: 50%;
     margin-bottom: 2;
 }
-
-/* Checkbox {
-    height: 2;
-} */
-
 
 PreviewModal {
     align: center middle;
@@ -69,3 +64,10 @@ PreviewModal {
 #preview-content {
     padding: 1;
 }
+
+
+Button.sign{
+    width: 25%;
+    height: 45%;
+}
+

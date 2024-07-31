@@ -39,58 +39,6 @@ def split_actions(
     return action_mapping
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """
-    # help
-    parser.add_argument('--help', action='help', help='Show this help message and exit')
-    """
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "-D",
-        "--download",
-        dest="download",
-        help="Downloading articles from learcpp.com",
-        action="store_true",
-    )
-
-    parser.add_argument(
-        "-A",
-        "--all",
-        const=False,
-        help="Download, convert and merge",
-        action="store_const",
-        default=False,
-    )
-    parser.add_argument("-R", "--rmcache", help="Remove cache", action="store_true")
-    parser.add_argument("-S", "--showerrors", help="Show errors", action="store_true")
-
-    parser.add_argument(
-        "--max_threads",
-        action="store",
-        type=int,
-        default=22,
-        help="Store an integer value",
-    )
-    parser.add_argument("--count", type=int, default=33, help="Count a int")
-
-    # append
-    parser.add_argument(
-        "--file", action="append", default="config.env", help="Append Action"
-    )
-
-    # append_const
-    parser.add_argument(
-        "--mode", action="append_const", const="read", help="Append Const Action"
-    )
-
-    # count
-    parser.add_argument(
-        "--verbose-level", action="count", default=15, help="Count Action"
-    )
-    return parser
-
-
 class PreviewModal(textual.screen.ModalScreen):
     BINDINGS = [("ctrl+p", "app.pop_screen", "Close")]
 
@@ -147,32 +95,7 @@ class Menual(App[SelectedOptions]):
         )
         self.__action_groups = split_actions(parser._actions)
 
-    def action_next_widget(self) -> None:
-        current = self.screen.focused
-        widgets = tuple(self.query("SelectionList, Input").results())
-        if current in widgets:
-            index = widgets.index(current)
-            next_widget = widgets[(index + 1) % len(widgets)]
-            self.set_focus(next_widget)
-
-    def action_previous_widget(self) -> None:
-        current = self.screen.focused
-        widgets = tuple(self.query("SelectionList, Input").results())
-        if current in widgets:
-            index = widgets.index(current)
-            previous_widget = widgets[(index - 1) % len(widgets)]
-            self.set_focus(previous_widget)
-
     def _build_widgets(self):
-        # StoreConstAction
-        selections = self.__action_groups[argparse._StoreConstAction]
-        selection_list = [
-            Selection(prompt=action.dest, value=action.dest, initial_state=action.const)
-            for action in selections
-        ]
-        with tc.Horizontal():
-            yield tw.SelectionList(*selection_list)
-
         def type_cvt(param_type: ty.Any):
             if param_type is str or param_type is None:
                 return "text"
@@ -183,9 +106,23 @@ class Menual(App[SelectedOptions]):
             else:
                 raise Exception(f"Unknown type {param_type}")
 
-        # StoreAction
+        selections = self.__action_groups[argparse._StoreConstAction]
         store_actions = self.__action_groups[argparse._StoreAction]
+        append_actions = self.__action_groups[argparse._AppendAction]
+        append_const_actions = self.__action_groups[argparse._AppendConstAction]
+        count_actions = self.__action_groups[argparse._CountAction]
+
+        # StoreConstAction
+        selection_list = [
+            Selection(prompt=action.dest, value=action.dest, initial_state=action.const)
+            for action in selections
+        ]
+
+        # StoreAction
         with tc.VerticalScroll():
+            with tc.Horizontal():
+                yield tw.SelectionList(*selection_list)
+
             for val in store_actions:
                 yield tw.Label(val.help or "")
                 yield tw.Input(
@@ -194,31 +131,45 @@ class Menual(App[SelectedOptions]):
                     type=type_cvt(val.type),
                 )
 
-        # AppendAction
-        append_actions = self.__action_groups.get(argparse._AppendAction, [])
-        for action in append_actions:
-            yield tw.Label(action.help or "")
-            yield tw.Input(
-                placeholder=f"{action.dest} (comma-separated)",
-                # value="test",
-                value=str(action.default),
-                type=type_cvt(action.type),
-            )
+            # AppendAction
+            for action in append_actions:
+                yield tw.Label(action.help or "")
+                yield tw.Input(
+                    placeholder=f"{action.dest} (comma-separated)",
+                    # value="test",
+                    value=str(action.default),
+                    type=type_cvt(action.type),
+                )
 
-        # AppendConstAction
-        append_const_actions = self.__action_groups.get(argparse._AppendConstAction, [])
-        for action in append_const_actions:
-            yield tw.Label(action.help or "")
-            yield tw.Checkbox(action.dest)
+            # AppendConstAction
+            for action in append_const_actions:
+                yield tw.Label(action.help or "")
+                yield tw.Checkbox(action.dest)
 
-        # CountAction
-        count_actions = self.__action_groups.get(argparse._CountAction, [])
-        for action in count_actions:
-            yield tw.Label(action.help or "")
-            yield tw.Input(placeholder=action.dest, value=str(action.default or 0))
+            # CountAction
+            for action in count_actions:
+                yield tw.Label(action.help or "")
+                yield tw.Input(placeholder=action.dest, value=str(action.default or 0))
+
+    def action_next_widget(self) -> None:
+        current = self.screen.focused
+        widgets = tuple(self.query("SelectionList, Input, CheckBox").results())
+        if current in widgets:
+            index = widgets.index(current)
+            next_widget = widgets[(index + 1) % len(widgets)]
+            self.set_focus(next_widget)
+
+    def action_previous_widget(self) -> None:
+        current = self.screen.focused
+        widgets = tuple(self.query("SelectionList, Input, CheckBox").results())
+        if current in widgets:
+            index = widgets.index(current)
+            previous_widget = widgets[(index - 1) % len(widgets)]
+            self.set_focus(previous_widget)
 
     def compose(self) -> ComposeResult:
         yield tw.Header(name="pymenual", show_clock=True)
+        # with tc.Container():
         for widget in self._build_widgets():
             yield widget
         yield tw.Footer()
@@ -253,19 +204,7 @@ class Menual(App[SelectedOptions]):
         options = self._get_widgets_options()
         self.exit(result=options, return_code=0)
 
-
-def create_menual(parser: argparse.ArgumentParser):
-    app = Menual(parser=parser)
-    return app
-
-
-def main():
-    parser = build_parser()
-    menual = create_menual(parser)
-    inline = True
-    options = menual.run(inline=inline)
-    print(f"collected options: {options}")
-
-
-if __name__ == "__main__":
-    main()
+    @classmethod
+    def from_argparse(cls, parser: argparse.ArgumentParser):
+        app = Menual(parser=parser)
+        return app
