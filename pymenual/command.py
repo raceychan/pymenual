@@ -1,65 +1,3 @@
-from dataclasses import dataclass
-
-"""
-@dataclass
-class OptionSchema:
-    name: list[str]
-    type: ParamType
-    default: MultiValueParamData | None = None
-    required: bool = False
-    is_flag: bool = False
-    is_boolean_flag: bool = False
-    flag_value: Any = ""
-    opts: list = field(default_factory=list)
-    counting: bool = False
-    secondary_opts: list = field(default_factory=list)
-    key: str | tuple[str] = field(default_factory=generate_unique_id)
-    help: str | None = None
-    choices: Sequence[str] | None = None
-    multiple: bool = False
-    multi_value: bool = False
-    nargs: int = 1
-
-    def __post_init__(self):
-        self.multi_value = isinstance(self.type, click.Tuple)
-
-
-@dataclass
-class ArgumentSchema:
-    name: str
-    type: str
-    required: bool = False
-    key: str = field(default_factory=generate_unique_id)
-    default: MultiValueParamData | None = None
-    choices: Sequence[str] | None = None
-    multiple: bool = False
-    nargs: int = 1
-
-
-@dataclass
-class CommandSchema:
-    name: CommandName
-    function: Callable[..., Any | None]
-    key: str = field(default_factory=generate_unique_id)
-    docstring: str | None = None
-    options: list[OptionSchema] = field(default_factory=list)
-    arguments: list[ArgumentSchema] = field(default_factory=list)
-    subcommands: dict["CommandName", "CommandSchema"] = field(default_factory=dict)
-    parent: "CommandSchema | None" = None
-    is_group: bool = False
-
-    @property
-    def path_from_root(self) -> list["CommandSchema"]:
-        node = self
-        path = [self]
-        while True:
-            node = node.parent
-            if node is None:
-                break
-            path.append(node)
-        return list(reversed(path))
-"""
-
 import argparse
 import typing as ty
 from dataclasses import dataclass, field
@@ -73,6 +11,9 @@ def uuid_factory() -> str:
     return str(uuid4())
 
 
+ACTION_TYPE = ty.Literal["store", "append", "count"]
+
+
 @dataclass
 class Parameter:
     name: str
@@ -80,13 +21,14 @@ class Parameter:
     help: str = ""
     default: Any = None
     required: bool = False
-    choices: Optional[List[Any]] = None
-    action: str = ""
-    nargs: Union[int, str] = 1
+    choices: Optional[ty.Sequence[Any]] = None
+    action: str = ""  # TODO: ACTION_TYPE
+    nargs: Union[int, str, None] = None
     metavar: str = ""
     multiple: bool = False
     is_option: bool = False
-    value: Union[Any, list[Any]] = None
+    value: Union[Any, ty.Sequence[Any]] = None
+    option_strings: ty.Sequence[str] = field(default_factory=lambda: [""])
 
     @classmethod
     def from_action(cls, action: argparse.Action) -> "Parameter":
@@ -103,10 +45,11 @@ class Parameter:
             required=action.required,
             choices=action.choices,
             action=action.__class__.__name__,
-            nargs=action.nargs or 1,
+            nargs=action.nargs,
             metavar=action.metavar,
             multiple=multiple,
             is_option=bool(action.option_strings),
+            option_strings=action.option_strings,
         )
 
     @classmethod
@@ -137,6 +80,7 @@ class Parameter:
             metavar=param.metavar,
             multiple=multiple,
             is_option=isinstance(param, click.Option),
+            option_strings=param.opts,
         )
 
 
@@ -146,9 +90,9 @@ class Command:
 
     name: str
     command_id: str = field(default_factory=uuid_factory)
-    description: str = ""
-    usage: str = ""
-    epilog: str = ""
+    description: ty.Optional[str] = None
+    usage: ty.Optional[str] = None
+    epilog: ty.Optional[str] = None
     params: List[Parameter] = field(default_factory=list)
     subcommands: Dict[str, "Command"] = field(default_factory=dict)
     parent: Optional["Command"] = None
@@ -157,9 +101,9 @@ class Command:
     def from_parser(cls, parser: argparse.ArgumentParser) -> "Command":
         cmd = cls(
             name=parser.prog,
-            description=parser.description or "",
-            usage=parser.usage or "",
-            epilog=parser.epilog or "",
+            description=parser.description,
+            usage=parser.usage,
+            epilog=parser.epilog,
         )
 
         for action in parser._actions:
