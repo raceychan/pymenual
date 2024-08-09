@@ -48,6 +48,26 @@ def build_parser():
     parser.add_argument(
         "--verbose-level", action="count", default=15, help="Count Action"
     )
+
+    subparsers = parser.add_subparsers(dest="commands", required=False)
+
+    # Download command
+    download_parser = subparsers.add_parser(
+        "download", help="Download articles from learcpp.com"
+    )
+    # Add any download-specific arguments here
+
+    # Convert command
+    convert_parser = subparsers.add_parser(
+        "convert", help="Convert downloaded htmls to pdfs"
+    )
+    # Add any convert-specific arguments here
+
+    # Merge command
+    merge_parser = subparsers.add_parser(
+        "merge", help="Merge Chapters into a single book"
+    )
+    # Add any merge-specific arguments here
     return parser
 
 

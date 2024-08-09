@@ -39,6 +39,70 @@ def split_actions(
     return action_mapping
 
 
+def widget_builder(action_groups: dict):
+    def type_cvt(param_type: ty.Any):
+        if param_type is str or param_type is None:
+            return "text"
+        elif param_type is int:
+            return "integer"
+        elif param_type is float:
+            return "number"
+        else:
+            raise Exception(f"Unknown type {param_type}")
+
+    selections = action_groups[argparse._StoreConstAction]
+    store_actions = action_groups[argparse._StoreAction]
+    append_actions = action_groups[argparse._AppendAction]
+    append_const_actions = action_groups[argparse._AppendConstAction]
+    count_actions = action_groups[argparse._CountAction]
+
+    home_layout = tc.Vertical(id="home-layout")
+    scroll_body = tc.VerticalScroll(
+        tw.Static(""),
+        id="home-body-scroll",
+    )
+    with home_layout:
+        with scroll_body:
+            # StoreConstAction
+            selection_list = [
+                Selection(
+                    prompt=action.dest, value=action.dest, initial_state=action.const
+                )
+                for action in selections
+            ]
+            with tc.Horizontal(id="home-selections"):
+                yield tw.SelectionList(*selection_list)
+                yield tw.Static("pymenual-app", id="home-app-info")
+
+            # StoreAction
+            for val in store_actions:
+                yield tw.Label(val.help or "")
+                yield tw.Input(
+                    placeholder=val.dest,
+                    value=str(val.default),
+                    type=type_cvt(val.type),
+                )
+
+            # AppendAction
+            for action in append_actions:
+                yield tw.Label(action.help or "")
+                yield tw.Input(
+                    placeholder=f"{action.dest} (comma-separated)",
+                    value=str(action.default),
+                    type=type_cvt(action.type),
+                )
+
+            # AppendConstAction
+            for action in append_const_actions:
+                yield tw.Label(action.help or "")
+                yield tw.Checkbox(action.dest)
+
+            # CountAction
+            for action in count_actions:
+                yield tw.Label(action.help or "")
+                yield tw.Input(placeholder=action.dest, value=str(action.default or 0))
+
+
 class PreviewModal(textual.screen.ModalScreen):
     BINDINGS = [("ctrl+p", "app.pop_screen", "Close")]
 
@@ -95,63 +159,7 @@ class Menual(App[SelectedOptions]):
         )
         self.__action_groups = split_actions(parser._actions)
 
-    def _build_widgets(self):
-        def type_cvt(param_type: ty.Any):
-            if param_type is str or param_type is None:
-                return "text"
-            elif param_type is int:
-                return "integer"
-            elif param_type is float:
-                return "number"
-            else:
-                raise Exception(f"Unknown type {param_type}")
-
-        selections = self.__action_groups[argparse._StoreConstAction]
-        store_actions = self.__action_groups[argparse._StoreAction]
-        append_actions = self.__action_groups[argparse._AppendAction]
-        append_const_actions = self.__action_groups[argparse._AppendConstAction]
-        count_actions = self.__action_groups[argparse._CountAction]
-
-        # StoreConstAction
-        selection_list = [
-            Selection(prompt=action.dest, value=action.dest, initial_state=action.const)
-            for action in selections
-        ]
-
-        # StoreAction
-        with tc.VerticalScroll():
-            with tc.Horizontal():
-                yield tw.SelectionList(*selection_list)
-
-            for val in store_actions:
-                yield tw.Label(val.help or "")
-                yield tw.Input(
-                    placeholder=val.dest,
-                    value=str(val.default),
-                    type=type_cvt(val.type),
-                )
-
-            # AppendAction
-            for action in append_actions:
-                yield tw.Label(action.help or "")
-                yield tw.Input(
-                    placeholder=f"{action.dest} (comma-separated)",
-                    # value="test",
-                    value=str(action.default),
-                    type=type_cvt(action.type),
-                )
-
-            # AppendConstAction
-            for action in append_const_actions:
-                yield tw.Label(action.help or "")
-                yield tw.Checkbox(action.dest)
-
-            # CountAction
-            for action in count_actions:
-                yield tw.Label(action.help or "")
-                yield tw.Input(placeholder=action.dest, value=str(action.default or 0))
-
-    def action_next_widget(self) -> None:
+    async def action_next_widget(self) -> None:
         current = self.screen.focused
         widgets = tuple(self.query("SelectionList, Input, CheckBox").results())
         if current in widgets:
@@ -159,7 +167,7 @@ class Menual(App[SelectedOptions]):
             next_widget = widgets[(index + 1) % len(widgets)]
             self.set_focus(next_widget)
 
-    def action_previous_widget(self) -> None:
+    async def action_previous_widget(self) -> None:
         current = self.screen.focused
         widgets = tuple(self.query("SelectionList, Input, CheckBox").results())
         if current in widgets:
@@ -170,11 +178,11 @@ class Menual(App[SelectedOptions]):
     def compose(self) -> ComposeResult:
         yield tw.Header(name="pymenual", show_clock=True)
         # with tc.Container():
-        for widget in self._build_widgets():
+        for widget in widget_builder(self.__action_groups):
             yield widget
         yield tw.Footer()
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         self.query_one(tw.SelectionList).border_title = "Choose options"
         self.set_focus(self.query_one(tw.SelectionList))
 
@@ -196,11 +204,11 @@ class Menual(App[SelectedOptions]):
                 options[str(checkbox_widget.label)] = checkbox_widget.value
         return options
 
-    def action_toggle_preview(self) -> None:
+    async def action_toggle_preview(self) -> None:
         self._preview_model = PreviewModal(options=self._get_widgets_options())
-        self.push_screen(self._preview_model)
+        await self.push_screen(self._preview_model)
 
-    def action_confirm(self):
+    async def action_confirm(self):
         options = self._get_widgets_options()
         self.exit(result=options, return_code=0)
 

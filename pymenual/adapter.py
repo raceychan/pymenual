@@ -99,23 +99,5 @@ def introspect_click_app(app: BaseCommand) -> dict[CommandName, CommandSchema]:
     return data
 
 """
-import argparse
-from functools import singledispatch
-
-
-class CLI:
-    options: ...
-    arguments: ...
-
-
-    @classmethod
-    @singledispatch
-    def from_inspect(cls, cli: object):
-        ...
 
     
-
-
-def cvt_argparser(parser: argparse.ArgumentParser): ...
-
-

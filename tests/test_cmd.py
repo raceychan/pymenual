@@ -1,6 +1,14 @@
 import argparse
 
-from pymenual.command import Command, Parameter
+from pymenual.command import (
+    Command,
+    Const,
+    ConstPayload,
+    Option,
+    Parameter,
+    ParamTrait,
+    Payload,
+)
 
 
 def test_build_from_argparse():
@@ -12,19 +20,27 @@ def test_build_from_argparse():
     # Build universal classes
     cmd = Command(name="myapp", description="A sample app")
     cmd.params = [
-        Parameter(
+        Option(
             name="verbose",
-            action="store_true",
+            input_type=bool,
+            trait=ConstPayload(True),
             help="Enable verbose output",
-            is_option=True,
         ),
-        Parameter(name="input_file", help="Input file to process", required=True),
+        Option(
+            name="input_file",
+            help="Input file to process",
+            required=True,
+            input_type=str,
+            trait=ParamTrait(),
+        ),
     ]
 
     # Assert the structure
     assert cmd.name == "myapp"
     assert cmd.description == "A sample app"
     assert len(cmd.params) == 2
+    assert isinstance(cmd.params[0], Option)
+    assert isinstance(cmd.params[1], Option)
     assert cmd.params[0].name == "verbose"
     assert cmd.params[1].name == "input_file"
 
@@ -33,22 +49,25 @@ def test_reconstruct_argparse():
     # Create universal classes
     cmd = Command(name="myapp", description="A sample app")
     cmd.params = [
-        Parameter(
+        Option(
             name="verbose",
-            action="store_true",
+            input_type=bool,
+            trait=ConstPayload(True),
             help="Enable verbose output",
-            is_option=True,
         ),
-        Parameter(name="input_file", help="Input file to process", required=True),
+        Option(
+            name="input_file",
+            input_type=str,
+            trait=Payload(),
+            help="Input file to process",
+            required=True,
+        ),
     ]
 
     # Reconstruct argparse parser
     parser = argparse.ArgumentParser(prog=cmd.name, description=cmd.description)
     for arg in cmd.params:
-        if arg.is_option:
-            parser.add_argument(f"--{arg.name}", action=arg.action, help=arg.help)
-        else:
-            parser.add_argument(arg.name, help=arg.help)
+        arg.to_action()
 
     # Assert the reconstruction
     actions = parser._actions[1:]  # Exclude the default help action
@@ -58,74 +77,58 @@ def test_reconstruct_argparse():
 
 
 def test_store_action():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--foo", type=int, help="A simple store action")
-
     cmd = Command(
         name="test",
         params=[
-            Parameter(
-                name="foo", input_type=int, help="A simple store action", is_option=True
+            Option(
+                input_type=int, help="A simple store action", option_strings=["--foo"]
             )
         ],
     )
 
     assert len(cmd.params) == 1
-    assert cmd.params[0].name == "foo"
+    assert isinstance(cmd.params[0], Option)
+    assert cmd.params[0].option_strings == ["--foo"]
     assert cmd.params[0].input_type == int
-    assert cmd.params[0].is_option == True
 
 
 def test_store_true_action():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-
     cmd = Command(
         name="test",
         params=[
-            Parameter(
-                name="verbose",
-                action="store_true",
+            Option(
+                input_type=bool,
+                trait=ConstPayload(True),
                 help="Enable verbose output",
-                is_option=True,
+                option_strings=["--verbose"],
             )
         ],
     )
 
     assert len(cmd.params) == 1
-    assert cmd.params[0].name == "verbose"
-    assert cmd.params[0].action == "store_true"
+    assert isinstance(cmd.params[0], Option)
+    assert cmd.params[0].option_strings == ["--verbose"]
+    assert isinstance(cmd.params[0].trait, ConstPayload)
 
 
 def test_store_const_action():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--mode",
-        action="store_const",
-        const="advanced",
-        default="simple",
-        help="Set mode",
-    )
-
     cmd = Command(
         name="test",
         params=[
-            Parameter(
-                name="mode",
-                action="store_const",
-                value="advanced",
-                default="simple",
+            Option(
+                input_type=str,
+                trait=ConstPayload("advanced"),
                 help="Set mode",
-                is_option=True,
+                option_strings=["--mode"],
             )
         ],
     )
 
     assert len(cmd.params) == 1
-    assert cmd.params[0].name == "mode"
-    assert cmd.params[0].action == "store_const"
-    assert cmd.params[0].value == "advanced"
-    assert cmd.params[0].default == "simple"
+    assert isinstance(cmd.params[0], Option)
+    assert cmd.params[0].option_strings == ["--mode"]
+    assert isinstance(cmd.params[0].trait, ConstPayload)
+    assert cmd.params[0].trait.value == "advanced"
 
 
 def test_append_action():
